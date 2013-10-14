@@ -3,6 +3,9 @@ Created on 14/10/2013
 
 @author: user
 '''
+import os
+import time
+from threading import Thread
 import rpyc
 from rpyc.utils.server import ThreadedServer
 #---------------------------------------------------------------------------# 
@@ -12,18 +15,6 @@ from pymodbus.client.sync import ModbusSerialClient as ModbusClient
 #for scanning com port
 import serial
 
-class App():
-    def __init__(self):
-        #init modbus module 
-        
-        print 'Start ComServer Thread'
-        #Start comServer thread
-        ThreadedServer(ComServerService, port = 18861).start()
-        
-        
-
-
-    
 
 # Class - Modbus class and object
 #_____________________________________________________________________________
@@ -106,26 +97,56 @@ class Com_Modbus:
         return register_read
         pass
 
-
 class ComServerService(rpyc.Service):
-    
-    def on_connect(self):
-        # code that runs when a connection is created
-        # (to init the serivce, if needed)
-        pass
-    def on_disconnect(self):
-        # code that runs when the connection has already closed
-        # (to finalize the service, if needed)
+    ModbusClient = Com_Modbus()
+    _sharevalue = 10
+    class exposed_ComServer(object):   # exposing names is not limited to methods :)
+        def __init__(self, interval = 1):
+            self.interval = interval
+            self.active = True
+            self.thread = Thread(target = self.work)
+            self.thread.start()
+            self.share_stuff = 0
+            self.share_read_data = 0
+            
+        def exposed_get_answer(self,x): # this is an exposed method - when client first connect verify connection on client side
+            return x + 10
+        def exposed_test(self):
+            ComServerService._sharevalue = ComServerService._sharevalue + 3
+            self.share_stuff = ComServerService._sharevalue
+            return self.share_stuff
+        #___Wrapper function for modbus client ________________________
+        #
+        #
+        def exposed_Send_register(self,address,data):
+            print 'CMD = Client Send '
+            ComServerService.ModbusClient.Send_register(address, data)
+        def exposed_Read_register(self,address):
+            print 'CMD = Client Read '
+            self.share_read_data = ComServerService.ModbusClient.Read_register(address)
+            return self.share_read_data
+        #______________________________________________________________        
+        def exposed_stop(self):   # this method has to be exposed too
+            self.active = False
+            self.thread.join()
+            print 'ComServer Thread Stopped'
         
-        pass
-    
-    def exposed_get_answer(self,x): # this is an exposed method
-        return x + 10
+        def work(self):
+            print 'ComServer Thread Started'
+            while self.active:
+                
+                
+                
+                time.sleep(self.interval)
 
-    def get_question(self):  # while this method is not exposed
-        return "what is the airspeed velocity of an unladen swallow?"
+  
+
+
 
 if __name__ == "__main__":
-    application = App()
-
-    
+    print '___________Waiting for client connection...'
+    #Start comServer thread
+    #ThreadedServer(ComServerService, port = 18861).start()
+    ThreadedServer(ComServerService, port = 18861).start()
+        
+        
