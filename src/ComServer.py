@@ -103,6 +103,7 @@ class ComServerService(rpyc.Service):
     class exposed_ComServer(object):   # exposing names is not limited to methods :)
         def __init__(self, interval = 1):
             self.interval = interval
+            self.alive = 1
             self.active = True
             self.thread = Thread(target = self.work)
             self.thread.start()
@@ -119,10 +120,10 @@ class ComServerService(rpyc.Service):
         #
         #
         def exposed_Send_register(self,address,data):
-            print 'CMD = Client Send '
+            print 'CMD = Client Send ',address
             ComServerService.ModbusClient.Send_register(address, data)
         def exposed_Read_register(self,address):
-            print 'CMD = Client Read '
+            print 'CMD = Client Read ',address
             self.share_read_data = ComServerService.ModbusClient.Read_register(address)
             return self.share_read_data
         #______________________________________________________________        
@@ -134,13 +135,17 @@ class ComServerService(rpyc.Service):
         def work(self):
             print 'ComServer Thread Started'
             while self.active:
-                
-                
-                
+                #this might cause crash
+                #self.alive = self.alive + 1
+
+                #if (self.alive % 10) == 0:
+                #    ComServerService.ModbusClient.Send_register(616, self.alive)
+                #    readback = ComServerService.ModbusClient.Read_register(616)
+                #    if readback != self.alive:
+                #        print 'PLC Com is down - please check wiring / PLC address / PLC power'
+                #if self.alive >= 100:
+                #    self.alive = 0
                 time.sleep(self.interval)
-
-  
-
 
 
 if __name__ == "__main__":
